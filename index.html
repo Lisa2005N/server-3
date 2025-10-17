@@ -1,34 +1,73 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>画像データを送る</title>
-  <script src="https://unpkg.com/petite-vue" defer init></script>
-</head>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>画像データを送る</title>
+    <script src="https://unpkg.com/petite-vue" defer init></script>
+  </head>
 
-<body v-scope="dataset()">
-  <p>
-    <input type="file" accept=".png, .jpg, .jpeg" />
-    <figure><img height="200" /></figure> <!-- プレビュー用（JSONのみ） -->
-  </p>
-  <p>
-    <button @click="fetchData">データ取得</button>
-  </p>
-</body>
+  <body v-scope="dataset()">
+    <p>
+      <input type="file" accept=".png, .jpg, .jpeg" @change="onFileChange" />
+      <figure><img :src="image" height="200" alt="プレビュー" /></figure>
+      <!-- プレビュー用（JSONのみ） -->
+    </p>
 
-<script>
-  function dataset() {
-    return {
-      data: false,
-      async fetchData() {
-        const url = 'https://httpbin.org/post';
-        const res = await fetch(url);
-        const obj = await res.json();
-        this.data = obj;
-        console.log(JSON.stringify(this.data, null, 2));
-      }
+    <p>
+      <button @click="fetchData">送信</button>
+    </p>
+
+    <section v-if="data">
+      <h3>レスポンス（raw）</h3>
+      <pre>{{ JSON.stringify(data, null, 2) }}</pre>
+    </section>
+  </body>
+
+  <script>
+    function dataset() {
+      return {
+        // reactive state
+        file: false,
+        image: false,
+        data: false,
+
+        onFileChange(e) {
+          this.file = e.target.files[0];
+          if (!this.file) {
+            this.image = false;
+            return;
+          }
+          const reader = new FileReader();
+          reader.addEventListener('load', () => {
+            this.image = reader.result;
+          });
+          reader.readAsDataURL(this.file);
+        },
+
+        async fetchData() {
+          const url = 'https://httpbin.org/post';
+
+          const body = new FormData();
+          if (this.file) {
+            body.append('image', this.file, this.file.name);
+          }
+          body.append('author', 'ojk');
+
+          const res = await fetch(url, {
+            method: 'POST',
+            body: body
+          });
+
+          const obj = await res.json();
+          this.data = obj; // HTTPBin のレスポンスオブジェクト
+
+          if (obj.files && obj.files.image) {
+            this.image = obj.files.image;
+          }
+          console.log(JSON.stringify(this.data, null, 2));
+        }
+      };
     }
-  }
-</script>
+  </script>
 </html>
